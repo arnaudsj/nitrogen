@@ -10,7 +10,7 @@ reflect() -> record_info(fields, template).
 
 render(_ControlID, Record) ->
 	FileName = Record#template.file,
-	FilePath = io_lib:format("./content/web_content/~s.html", [FileName]),
+	FilePath = io_lib:format("./priv/templates/~s.html", [FileName]),
 	FileContents = case file:read_file(FilePath) of
 		{ok, B} -> 
 			B;

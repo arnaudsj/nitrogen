@@ -24,9 +24,16 @@ handle_request(Module) ->
 			case wf_platform:request_method() of 
 				'GET' -> 
 					try handle_get_request(Module) 
-					catch Type : Msg -> 
-						?LOG("ERROR: ~p~n~p~n~p", [Type, Msg, erlang:get_stacktrace()]),
-						handle_get_request(web_error) 
+					catch 
+						Type : Msg -> 
+							case Msg of
+								undef -> 
+									wf_http_404(); 
+								_ -> 
+									?LOG("ERROR: ~p~n~p~n~p", [Type, Msg, erlang:get_stacktrace()]),
+									wf_http_500() 
+							end
+						%% handle_get_request(web_error) %% Causes Error 
 					end;
 				'POST' -> 
 					try handle_post_request(Module) 
@@ -110,4 +117,17 @@ handle_post_request(Module) ->
 	put(current_path, wf_path:to_path(TargetID)),
 	wf_platform:set_content_type("application/javascript"),
 	wf_platform:set_response_body(wf_script:get_script()),
+	wf_platform:build_response().
+	
+	
+wf_http_404() -> 	
+	wf_platform:set_response_code(404),
+	wf_platform:set_content_type("text/html"),
+	wf_platform:set_response_body("HTTP 404: Page Not Found"),
+	wf_platform:build_response().
+	
+wf_http_500() -> 	
+	wf_platform:set_response_code(500),
+	wf_platform:set_content_type("text/html"),
+	wf_platform:set_response_body("HTTP 500: Internal Server Error"),
 	wf_platform:build_response().
