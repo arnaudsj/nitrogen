@@ -22,6 +22,10 @@
 -include ("wf.inc").
 -compile (export_all).
 
+%%% EXPOSE WF_INIT %%%
+
+init() -> wf_init:init().
+
 %%% EXPOSE WF_UTILS %%%
 
 path_to_module(Path) -> wf_utils:path_to_module(Path).
@@ -90,6 +94,12 @@ wire(TriggerID, TargetID, Actions) -> wf_render:wire(TriggerID, TargetID, Action
 continue(Tag, Function) -> wf_continuation:continue(Tag, Function).
 continue(Tag, Function, Interval) -> wf_continuation:continue(Tag, Function, Interval).
 continue(Tag, Function, Interval, Timeout) -> wf_continuation:continue(Tag, Function, Interval, Timeout).
+
+
+%%% WF_COMET %%%
+
+comet(Function) -> wf_comet:comet(Function).
+comet_flush() -> wf_comet:comet_flush().
 
 
 %%% WF_REDIRECT %%%

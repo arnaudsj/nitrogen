@@ -1,6 +1,6 @@
 #!/bin/sh
 export NITROGEN_SRC=..
-export MOCHIWEB_SRC=../platforms/mochiweb
+export MOCHIWEB_SRC=../http_servers/mochiweb
 cd `dirname $0`
 
 if [[ -d $MOCHIWEB_SRC ]]; then
@@ -17,7 +17,7 @@ echo Creating link to Nitrogen support files...
 rm -f content/wwwroot/nitrogen
 ln -s ../../$NITROGEN_SRC/www content/wwwroot/nitrogen
 
-echo Starting Nitrogen on Inets...
+echo Starting Nitrogen on Mochiweb...
 exec erl \
 	-name nitrogen@localhost \
 	-pa $PWD/ebin $PWD/include \

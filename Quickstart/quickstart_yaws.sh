@@ -1,6 +1,6 @@
 #!/bin/sh
 export NITROGEN_SRC=..
-export YAWS_SRC=../platforms/yaws
+export YAWS_SRC=../http_servers/yaws
 cd `dirname $0`
 
 if [[ -d $YAWS_SRC ]]; then
@@ -17,7 +17,7 @@ echo Creating link to nitrogen support files...
 rm -f content/wwwroot/nitrogen
 ln -s ../../$NITROGEN_SRC/www content/wwwroot/nitrogen
 
-echo Starting Nitrogen on Inets...
+echo Starting Nitrogen on Yaws...
 exec erl \
 	-name nitrogen@localhost \
 	-pa $PWD/ebin $PWD/include \

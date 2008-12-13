@@ -8,7 +8,7 @@
 
 handle_request(Module) ->
 	% Set up session.
-	L = [wf_action_queue, wf_update_queue, wf_content_script, wf_dom_script, wf_script, wf_paths, wf_state, wf_state_updates, wf_headers],
+	L = [wf_action_queue, wf_update_queue, wf_content_script, wf_script, wf_paths, wf_state, wf_headers],
 	[put(X, []) || X <- L],
 	wf_platform:set_page_module(Module),
 	wf_platform:clear_redirect(),
@@ -58,10 +58,18 @@ handle_get_request(Module) ->
 	% Render the page...
 	wf:state(validators, []),
 	put(current_path, [page]),
-	Response = Module:main(),
-	
-	% Send the response.
-	wf_platform:set_response_body(Response),	
+	Body = Module:main(),
+
+	% Inject script into the response body, if necessary...
+	ContentType = get(wf_content_type),
+	Body1 = case ContentType of
+		"text/html" ->
+			Script = wf_script:get_script(),
+			wf_platform:inject_script(Body, Script);
+		_ -> 
+			Body
+	end,
+	wf_platform:set_response_body(Body1),	
 	wf_platform:build_response().
 
 
@@ -71,13 +79,11 @@ handle_post_request(Module) ->
 	put(request_query, Query),
 	wf_state:restore_state_from_post(Query),
 	wf_query:prepare_request_query_paths(Query),
+	wf_platform:set_content_type("application/javascript"),
 	
 	% Get the event that triggered the postback...
 	[PostbackInfo] = wf:q(postbackInfo),
 	{EventType, TriggerID, TargetID, Tag, Delegate} = wf:depickle(PostbackInfo),
-	
-	% Move to the right path...
-	put(current_path, wf_path:to_path(TargetID)),
 	
 	% Figure out if we should use a delegate.
 	Module1 = case Delegate of 
@@ -85,47 +91,68 @@ handle_post_request(Module) ->
 		_ -> Delegate
 	end,
 	
+	% Move to the right path...
+	put(current_path, wf_path:to_path(TargetID)),
+
 	case EventType of
-		continuation ->
-			% If it's a continuation, then see if it is still running or finished.
-			% If it is still running, then re-register the callback.
-			% If it is finished, then call continue with the result.
-			Pid = Tag,
-			case wf_continuation:get_result(Pid) of
-				{running, Interval} -> wf_continuation:register(Pid, Interval);
-				{done, InnerTag, Result} -> Module1:continue(InnerTag, Result)
-			end;
+		comet ->
+			handle_post_request_comet();
 			
-		_ ->
-			% If it's a standard event, then validate based on the trigger.
-			% If validation is successful, then call the event.
-			case wf_validation:validate(TriggerID) of
-				true -> Module1:event(Tag);
-				false -> ok
-			end
+		continuation -> 
+			handle_post_request_continuation(Module1, TriggerID, TargetID, Tag);
+			
+		_ -> 
+			handle_post_request_normal(Module1, TriggerID, TargetID, Tag)
+	end.
+	
+handle_post_request_comet() -> 
+	Content = wf_comet:get_content(),
+	wf_platform:set_response_body(Content),
+	wf_platform:build_response().
+
+handle_post_request_continuation(Module, _TriggerID, TargetID, Tag) ->
+	% Move to the right path...
+	put(current_path, wf_path:to_path(TargetID)),
+
+	% Check if the continuation is still running, or if it finished.
+	% If it is still running, then re-register the callback.
+	% If it is finished, then call continue with the result.
+	Pid = Tag,
+	case wf_continuation:get_result(Pid) of
+		{running, Interval} -> wf_continuation:register(Pid, Interval);
+		{done, InnerTag, Result} -> Module:continue(InnerTag, Result)
 	end,
 	
-	% Process any 'flash' messages so long as:
-	% - This isn't an event FROM the flash element.
-	% - We are not redirecting.
-	case Module1 /= element_flash andalso get(is_redirect) /= true of
-		true -> element_flash:update();
-		false -> ok
-	end,
-	
+	element_flash:update(Module),
+	Script = wf_script:get_script(),
+	wf_platform:set_response_body(Script),
+	wf_platform:build_response().
+
+handle_post_request_normal(Module, TriggerID, TargetID, Tag) ->	
 	% Move to the right path...
 	put(current_path, wf_path:to_path(TargetID)),
 	wf_platform:set_content_type("application/javascript"),
 	wf_platform:set_response_body(wf_script:get_script()),
 	wf_platform:build_response().
 	
-	
+	% Validate based on the trigger.
+	% If validation is successful, then call the event.
+	case wf_validation:validate(TriggerID) of
+		true -> Module:event(Tag);
+		false -> ok
+	end,
+
+	element_flash:update(Module),
+	Script = wf_script:get_script(),
+	wf_platform:set_response_body(Script),
+	wf_platform:build_response().
+
 wf_http_404() -> 	
 	wf_platform:set_response_code(404),
 	wf_platform:set_content_type("text/html"),
 	wf_platform:set_response_body("HTTP 404: Page Not Found"),
 	wf_platform:build_response().
-	
+
 wf_http_500() -> 	
 	wf_platform:set_response_code(500),
 	wf_platform:set_content_type("text/html"),
