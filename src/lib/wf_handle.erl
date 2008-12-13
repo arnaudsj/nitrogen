@@ -131,9 +131,6 @@ handle_post_request_continuation(Module, _TriggerID, TargetID, Tag) ->
 handle_post_request_normal(Module, TriggerID, TargetID, Tag) ->	
 	% Move to the right path...
 	put(current_path, wf_path:to_path(TargetID)),
-	wf_platform:set_content_type("application/javascript"),
-	wf_platform:set_response_body(wf_script:get_script()),
-	wf_platform:build_response().
 	
 	% Validate based on the trigger.
 	% If validation is successful, then call the event.
