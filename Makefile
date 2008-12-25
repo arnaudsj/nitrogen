@@ -1,3 +1,5 @@
+# Test mod
+
 compile: 
 	erl -make
 	
